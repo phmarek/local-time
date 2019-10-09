@@ -567,6 +567,8 @@ In other words:
 (defun timestamp-minimize-part (timestamp part &key
                                 (timezone *default-timezone*)
                                 into)
+  (if (eq part :minute)
+    (setf part :min))
   (let* ((timestamp-parts '(:nsec :sec :min :hour :day :month))
          (part-count (position part timestamp-parts)))
     (assert part-count nil
@@ -590,6 +592,8 @@ In other words:
 (defun timestamp-maximize-part (timestamp part &key
                                 (timezone *default-timezone*)
                                 into)
+  (if (eq part :minute)
+    (setf part :min))
   (let* ((timestamp-parts '(:nsec :sec :min :hour :day :month))
          (part-count (position part timestamp-parts)))
     (assert part-count nil
@@ -611,7 +615,7 @@ In other words:
                           :timezone timezone
                           :into into)))))
 
-(defmacro with-decoded-timestamp ((&key nsec sec minute hour day month year day-of-week daylight-p timezone offset)
+(defmacro with-decoded-timestamp ((&key nsec sec minute hour day month year day-of-week daylight-p timezone offset (min minute))
                                    timestamp &body forms)
   "This macro binds variables to the decoded elements of TIMESTAMP. The TIMEZONE argument is used for decoding the timestamp, and is not bound by the macro. The value of DAY-OF-WEEK starts from 0 which means Sunday."
   (let ((ignores)
@@ -637,8 +641,8 @@ In other words:
                     (setf types (nreverse types)))))
       (when nsec
         (push `(type (integer 0 999999999) ,nsec) types))
-      (declare-fixnum-type sec minute hour day month year)
-      (initialize nsec sec minute hour day month year day-of-week daylight-p))
+      (declare-fixnum-type sec min hour day month year)
+      (initialize nsec sec min hour day month year day-of-week daylight-p))
     `(multiple-value-bind (,@variables)
          (decode-timestamp ,timestamp :timezone ,(or timezone '*default-timezone*) :offset ,offset)
        (declare (ignore ,@ignores) ,@types)
@@ -767,7 +771,7 @@ In other words:
          time
        (ecase part
          (:sec (setf sec new-value))
-         (:minute (setf minute new-value))
+         ((:minute :min) (setf minute new-value))
          (:hour (setf hour new-value))
          (:day-of-month (setf day new-value))
          (:month (setf month new-value)
@@ -830,11 +834,11 @@ day given by OFFSET in the week that contains TIME."
                                     offset sec-offset
                                     nsec new-nsec)
                               (go top)))
-                           ((:sec :minute :hour)
+                           ((:sec :minute :min :hour)
                             (multiple-value-bind (days-offset new-sec)
                                 (floor (+ sec (* offset (ecase part
                                                           (:sec 1)
-                                                          (:minute +seconds-per-minute+)
+                                                          ((:min :minute) +seconds-per-minute+)
                                                           (:hour +seconds-per-hour+))))
                                        +seconds-per-day+)
                               (return-from direct-adjust (values nsec new-sec (+ day days-offset)))))
@@ -873,7 +877,7 @@ day given by OFFSET in the week that contains TIME."
                                                month-new year-new
                                                :timezone timezone :offset utc-offset)))))
     (ecase part
-      ((:nsec :sec :minute :hour :day :day-of-week)
+      ((:nsec :sec :minute :min :hour :day :day-of-week)
        (direct-adjust part offset
                       (nsec-of time)
                       (sec-of time)
@@ -1789,7 +1793,7 @@ See the documentation of FORMAT-TIMESTRING for the structure of FORMAT."
                             (:usec (floor nsec 1000))
                             (:msec (floor nsec 1000000))
                             (:sec sec)
-                            (:min minute)
+                            ((:min :minute) minute)
                             (:hour hour)
                             (:hour12 (1+ (mod (1- hour) 12)))
                             (:day day)
