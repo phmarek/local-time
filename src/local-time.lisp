@@ -566,15 +566,20 @@ In other words:
 
 (defun timestamp-minimize-part (timestamp part &key
                                 (timezone *default-timezone*)
-                                into)
+                                into part-offset)
   (if (eq part :minute)
     (setf part :min))
-  (let* ((timestamp-parts '(:nsec :sec :min :hour :day :month))
+  (let* ((timestamp-parts '(:nsec :sec :min :hour :day :month :year))
          (part-count (position part timestamp-parts)))
     (assert part-count nil
             "timestamp-minimize-part called with invalid part ~a (expected one of ~a)"
             part
             timestamp-parts)
+    (when part-offset
+      (decf part-count part-offset)
+      (assert (minusp part-offset) nil
+              "timestamp-minimize-part called with part ~a and (too big) part-offset ~d."
+              part part-offset))
     (multiple-value-bind (nsec sec min hour day month year day-of-week daylight-saving-time-p offset)
         (decode-timestamp timestamp :timezone timezone)
       (declare (ignore nsec day-of-week daylight-saving-time-p))
@@ -591,15 +596,20 @@ In other words:
 
 (defun timestamp-maximize-part (timestamp part &key
                                 (timezone *default-timezone*)
-                                into)
+                                into part-offset)
   (if (eq part :minute)
     (setf part :min))
-  (let* ((timestamp-parts '(:nsec :sec :min :hour :day :month))
+  (let* ((timestamp-parts '(:nsec :sec :min :hour :day :month :year))
          (part-count (position part timestamp-parts)))
     (assert part-count nil
             "timestamp-maximize-part called with invalid part ~a (expected one of ~a)"
             part
             timestamp-parts)
+    (when part-offset
+      (incf part-count part-offset)
+      (assert (minusp part-offset) nil
+              "timestamp-minimize-part called with part ~a and (too negative) part-offset ~d."
+              part part-offset))
     (multiple-value-bind (nsec sec min hour day month year day-of-week daylight-saving-time-p offset)
         (decode-timestamp timestamp :timezone timezone)
       (declare (ignore nsec day-of-week daylight-saving-time-p))
@@ -609,7 +619,7 @@ In other words:
                           (if (> part-count 1) 59 min)
                           (if (> part-count 2) 23 hour)
                           (if (> part-count 3) (days-in-month month year) day)
-                          month
+                          (if (> part-count 4) 12 month)
                           year
                           :offset (if timezone nil offset)
                           :timezone timezone
