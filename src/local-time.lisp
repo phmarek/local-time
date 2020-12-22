@@ -716,6 +716,8 @@ In other words:
              (cond
                ((string= operation :set)
                 (push `(%set-timestamp-part ,part ,value) functions))
+               ((string= operation :round)
+                (push `(%round-timestamp-part ,part ,value) functions))
                ((string= operation :offset)
                 (push `(%offset-timestamp-part ,part ,value) functions))
                ((string= operation :utc-offset)
@@ -893,6 +895,22 @@ day given by OFFSET in the week that contains TIME."
                       (sec-of time)
                       (day-of time)))
       ((:month :year) (safe-adjust part offset time)))))
+
+
+#+(or)
+(defun %round-timestamp-part (time value unit) 
+  "Rounds TIME to VALUE UNITs, eg. to 30 :MINUTE."
+  (let ((minimized (if (eq unit :sec)
+                     time
+                     (timestamp-minimize-part time unit
+                                              :part-offset 1)))
+  (let* ((val (funcall query-fn timestamp))
+         (new (- val (mod val amount))))
+    (adjust-timestamp
+      (timestamp-minimize-part timestamp set-unit)
+      (set set-unit new))))))
+
+
 
 ;; TODO merge this functionality into timestamp-difference
 (defun timestamp-whole-year-difference (time-a time-b)
